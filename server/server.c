@@ -29,7 +29,7 @@ void    use_signal(int sig)
         nb = nb + 1;
 }
 
-int     main(int argc, char **argv)
+int     main()
 {
     int     pid;
     pid = getpid();
