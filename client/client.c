@@ -12,44 +12,65 @@
 
 #include "../header/minitalk.h"
 
-void	send_bits(char c, int pid)
+void	send_bit(char c, int bit_nb, int pid)
 {
-	int	 i;
-
-	i = 0;
-	while (i < 8)
+	if ((c >> bit_nb & 1))
 	{
-		if ((c >> i & 1))
-		{
-			if (kill(pid, SIGUSR1) == -1)
-				exit(1);
-		}
-		if (!(c >> i & 1))
-		{
-			if (kill(pid, SIGUSR2) == -1)
-				exit(1);
-		}
-		i++;
-		usleep(20);
+		if (kill(pid, SIGUSR1) == -1)
+			exit(1);
+	}
+	if (!(c >> bit_nb & 1))
+	{
+		if (kill(pid, SIGUSR2) == -1)
+			exit(1);
 	}
 }
 
-void	send_str(const char *str, int pid)
+void	send_str(char *s, int pid)
 {
-	int	 i;
+	static int	i = 0;
+	static char	*str = NULL;
+	static int	savepid = 0;
+	static int	bit_nb = 0;
 
-	i = 0;
-	while (str && str[i])
+	if (s)
 	{
-		send_bits(str[i], pid);
-		i++;
+		str = s;
+		savepid = pid;
+		if (str && str[i])
+			send_bit(str[i], bit_nb++, savepid);
+		return ;
 	}
-	send_bits(str[i], pid);
+	if (str && str[i])
+	{
+		send_bit(str[i], bit_nb++, savepid);
+		if (bit_nb >= 8)
+			if (++i)
+				bit_nb = 0;
+		return ;
+	}
+	if (str && !str[i] && bit_nb < 8)
+		send_bit(0, bit_nb++, savepid);
+	if (str && !str[i] && bit_nb >= 8)
+		exit(0);
+}
+
+void	use_signal(int sig)
+{
+	static int	i = 0;
+
+	(void)sig;
+	send_str(NULL, 0);
+	i++;
+	usleep(27);
+	if (i >= 8 * 2000)
+		usleep(50);
 }
 
 int	main(int argc, char **argv)
 {
-	int	 pid;
+	int					pid;
+	struct sigaction	action;
 
 	if (argc != 3)
 	{
@@ -62,5 +83,10 @@ int	main(int argc, char **argv)
 		printf("PID Error, please enter a valid PID.\n");
 		exit (1);
 	}
+	action.sa_sigaction = (void *) use_signal;
+	action.sa_flags = SA_SIGINFO;
+	sigaction(SIGUSR1, &action, NULL);
 	send_str(argv[2], pid);
+	while (1)
+		pause();
 }

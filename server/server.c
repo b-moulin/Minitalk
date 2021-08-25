@@ -12,21 +12,18 @@
 
 #include "../header/minitalk.h"
 
-void	use_signal(int sig)
+void	use_signal(int sig, siginfo_t *info)
 {
 	static int	nb = 0;
 	static char	c = 0;
+	static int	savepid = 0;
 
-	if (sig == SIGINT)
-		exit(0);
-	else if (sig == SIGUSR1)
-	{
+	if (!savepid || savepid != info->si_pid)
+		savepid = info->si_pid;
+	if (sig == SIGUSR1)
 		c |= (1 << nb);
-	}
-	else if (sig == SIGUSR2)
-	{
+	if (sig == SIGUSR2)
 		c |= (0 << nb);
-	}
 	if (nb == 7)
 	{
 		if (c)
@@ -38,11 +35,14 @@ void	use_signal(int sig)
 	}
 	else
 		nb = nb + 1;
+	if (kill(savepid, SIGUSR1) == -1)
+		exit(1);
 }
 
 int	main(void)
 {
-	int	 pid;
+	int					pid;
+	struct sigaction	action;
 
 	pid = getpid();
 	if (pid < 0)
@@ -51,9 +51,10 @@ int	main(void)
 		exit(1);
 	}
 	printf("PID %d\n", pid);
-	signal(SIGUSR1, use_signal);
-	signal(SIGUSR2, use_signal);
-	signal(SIGINT, use_signal);
+	action.sa_sigaction = (void *) use_signal;
+	action.sa_flags = SA_SIGINFO;
+	sigaction(SIGUSR1, &action, NULL);
+	sigaction(SIGUSR2, &action, NULL);
 	while (1)
 		pause();
 }

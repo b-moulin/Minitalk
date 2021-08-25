@@ -14,7 +14,7 @@ OBJ_CLIENT	= $(SRC_CLIENT:.c=.o)
 
 CC		= gcc
 
-CFLAGS	= -Werror -Wall -Wextra
+CFLAGS	= #-Werror -Wall -Wextra
 
 RM		= rm -f
 
